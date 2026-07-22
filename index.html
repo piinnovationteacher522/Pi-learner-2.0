@@ -15,6 +15,8 @@
 
         #login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; background: #f9fafb; padding: 20px; }
         .login-box { background: white; padding: 44px 36px; border-radius: 12px; border: 1px solid var(--gray-line); box-shadow: 0 2px 12px rgba(17,24,39,0.06); width: 100%; max-width: 400px; text-align: center; }
+        .login-box .login-logo { max-width: 220px; max-height: 80px; height: auto; margin: 0 auto 20px auto; display: block; object-fit: contain; }
+        .login-box .logo-fallback { width: 64px; height: 64px; margin: 0 auto 18px auto; border-radius: 50%; background: var(--blue); color: white; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; justify-content: center; letter-spacing: 1px; }
         .login-box h2 { color: #111827; margin-bottom: 6px; font-size: 1.5em; }
         .login-box .subtitle { color: var(--gray-text); margin-bottom: 20px; font-size: 0.95em; }
         .login-box input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95em; }
@@ -31,8 +33,12 @@
         .logout-btn { margin-top: 10px; padding: 6px 20px; background: transparent; border: 1px solid #374151; color: #9ca3af; border-radius: 20px; font-size: 0.8em; cursor: pointer; transition: 0.2s; }
         .logout-btn:hover { border-color: var(--blue); color: white; background: var(--blue); }
 
+        .search-box { padding: 12px 18px 0 18px; }
+        .search-box input { width: 100%; padding: 8px 12px; border: 1px solid #374151; background: #1f2937; color: white; border-radius: 6px; font-size: 0.85em; outline: none; }
+        .search-box input::placeholder { color: #9ca3af; }
+
         .menu-list { flex-grow: 1; overflow-y: auto; list-style-type: none; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
-        .menu-category { padding: 14px 18px; font-size: 0.98em; font-weight: bold; color: white; background: transparent; border-left: 4px solid var(--blue); margin-top: 14px; display: flex; align-items: center; cursor: pointer; user-select: none; }
+        .menu-category { padding: 14px 18px; font-size: 0.98em; font-weight: bold; color: white; background: transparent; border-left: 4px solid var(--blue); margin-top: 10px; display: flex; align-items: center; cursor: pointer; user-select: none; }
         .menu-category:hover { background: #1f2937; }
         .menu-category .cat-arrow { margin-left: auto; font-size: 0.85em; color: #6b7280; }
         .menu-category.closed .cat-arrow { transform: rotate(-90deg); }
@@ -49,10 +55,11 @@
 
         @media (max-width: 768px) {
             #dashboard-container { flex-direction: column; }
-            #sidebar { width: 100%; height: auto; max-height: 45dvh; flex-direction: column; }
+            #sidebar { width: 100%; height: auto; max-height: 50dvh; flex-direction: column; }
             #sidebar.collapsed { width: 100%; max-height: 0; }
             .tutor-info { padding: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
             .logout-btn { margin-top: 0; }
+            .search-box { padding: 10px; border-bottom: 1px solid #1f2937; }
             .menu-list { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding-bottom: 0; scrollbar-width: none; align-items: stretch; }
             .menu-list::-webkit-scrollbar { display: none; }
             .menu-category { margin-top: 0; border-left: none; border-bottom: 4px solid var(--blue); border-right: 2px solid #1f2937; padding: 15px; }
@@ -66,6 +73,8 @@
 <body>
     <div id="login-container">
         <div class="login-box">
+            <img src="Pi Logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="logo-fallback" style="display:none;">STEM</div>
             <h2>導師專區</h2>
             <div class="subtitle">登入以查看教材資源</div>
             <div id="login-error">帳號或密碼錯誤</div>
@@ -84,6 +93,9 @@
                 </div>
                 <button class="logout-btn" onclick="location.reload()">登出</button>
             </div>
+            <div class="search-box">
+                <input type="text" id="menu-search" placeholder="搜尋教材關鍵字..." oninput="filterMenu()">
+            </div>
             <ul class="menu-list" id="menu"></ul>
         </div>
         <div id="content-area">
@@ -95,36 +107,6 @@
     <script>
         /*__CONFIG_START__*/
         const MENU_CONFIG = [
-    {
-        "category": "導師學習",
-        "sections": [
-            {
-                "sectionName": "興趣班須知",
-                "items": [
-                    {
-                        "name": "1. 導師教學須知",
-                        "type": "info",
-                        "infoId": "tutor-notice"
-                    },
-                    {
-                        "name": "堅尼地道圖片",
-                        "type": "link",
-                        "path": "https://piinnovationteacher522.github.io/Pi-learner-2.0-admin/materials/edit 圖片用 ura yaha.svg"
-                    },
-                    {
-                        "name": "Pi introduction",
-                        "type": "embed",
-                        "path": "https://www.youtube.com/embed/watch?v=dQw4w9WgXcQ"
-                    },
-                    {
-                        "name": "新項目",
-                        "type": "embed",
-                        "path": "https://www.youtube-nocookie.com/embed/RLKXYqlhbVQ?rel=0&origin=https://www.youtube.com"
-                    }
-                ]
-            }
-        ]
-    },
     {
         "category": "教材",
         "sections": [
@@ -140,6 +122,41 @@
                         "name": "download？",
                         "type": "link",
                         "path": "https://drive.google.com/drive/folders/1vFnJvL0fLJ7VmMV3lpa3ir-W_k985NYr?usp=sharing"
+                    },
+                    {
+                        "name": "新項目",
+                        "type": "page",
+                        "path": "materials/FPV_racing_car_easy (1).html"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "category": "導師學習",
+        "sections": [
+            {
+                "sectionName": "興趣班須知",
+                "items": [
+                    {
+                        "name": "1. 導師教學須知",
+                        "type": "info",
+                        "infoId": "tutor-notice"
+                    },
+                    {
+                        "name": "YouTube",
+                        "type": "embed",
+                        "path": "https://www.youtube-nocookie.com/embed/yhAlVxcE3QA?rel=0&origin=https://www.youtube.com"
+                    },
+                    {
+                        "name": "drive",
+                        "type": "embed",
+                        "path": "https://drive.google.com/embeddedfolderview?id=1GviXLSqga1mkQbrp4Lli8ArS_EtgYzyj#grid"
+                    },
+                    {
+                        "name": "single file",
+                        "type": "embed",
+                        "path": "https://docs.google.com/document/d/1IXpM-NBZfaQss8V-XjF9gJA39-L4f68eNHPD6i8UliA/edit?usp=drive_link"
                     }
                 ]
             }
@@ -174,7 +191,12 @@
         ]
     }
 ];
+
+        const TRACKING_URL = "https://script.google.com/macros/s/AKfycbxlvSdq12IUT2SQlemjYyf1tZkJxkuPyYnZ3FO2TtB6F0a_j9V30ZoqfS4XwkHxKK9a/exec";
         /*__CONFIG_END__*/
+
+        let currentUserPerms = [];
+        let currentUserName = '';
 
         function doLogin() {
             const u = document.getElementById('username').value;
@@ -186,53 +208,78 @@
                 document.getElementById('login-container').style.display = 'none';
                 document.getElementById('dashboard-container').style.display = 'flex';
                 document.getElementById('display-name').innerText = user.username;
-                buildMenu(user.perms || []);
+                currentUserPerms = user.perms || [];
+                currentUserName = user.username;
+                buildMenu();
                 loadInfoPage('welcome', null);
+                trackAction('登入系統', '');
             } else {
                 document.getElementById('login-error').style.display = 'block';
             }
         }
 
-        function buildMenu(userPerms) {
+        function filterMenu() {
+            const kw = document.getElementById('menu-search').value;
+            buildMenu(kw);
+        }
+
+        function buildMenu(keyword = '') {
             const menuElement = document.getElementById('menu');
             menuElement.innerHTML = "";
-            const isSuperAdmin = userPerms.includes('ALL');
+            const isSuperAdmin = currentUserPerms.includes('ALL');
+            const searchMode = keyword.trim() !== '';
+            const searchKw = keyword.trim().toLowerCase();
 
             MENU_CONFIG.forEach(cat => {
-                if (!isSuperAdmin && !userPerms.includes(cat.category)) return;
+                if (!isSuperAdmin && !currentUserPerms.includes(cat.category)) return;
+
+                let visibleSections = [];
+                cat.sections.forEach(section => {
+                    let visibleItems = section.items;
+                    if (searchMode) {
+                        visibleItems = section.items.filter(item => item.name.toLowerCase().includes(searchKw));
+                    }
+                    if (visibleItems.length > 0) {
+                        visibleSections.push({ ...section, items: visibleItems });
+                    }
+                });
+
+                if (searchMode && visibleSections.length === 0) return;
 
                 const catLi = document.createElement('li');
-                catLi.className = 'menu-category';
+                catLi.className = 'menu-category' + (searchMode ? '' : ' closed');
                 catLi.innerHTML = `<span>${cat.category}</span><span class="cat-arrow">v</span>`;
                 menuElement.appendChild(catLi);
 
-                const childItems = [];
+                const childElements = [];
 
-                cat.sections.forEach(section => {
+                visibleSections.forEach(section => {
                     const sectionLi = document.createElement('li');
-                    sectionLi.className = 'menu-section';
+                    sectionLi.className = 'menu-section' + (searchMode ? '' : ' hidden');
                     sectionLi.innerText = section.sectionName;
                     menuElement.appendChild(sectionLi);
-                    childItems.push(sectionLi);
+                    childElements.push(sectionLi);
 
                     section.items.forEach(item => {
                         const itemLi = document.createElement('li');
+                        itemLi.className = 'menu-item' + (searchMode ? '' : ' hidden');
                         
                         if (item.type === 'link') {
                             const link = document.createElement('a');
-                            link.className = 'menu-item';
                             link.href = item.path;
                             link.target = "_blank";
+                            link.style.color = "inherit";
+                            link.style.textDecoration = "none";
+                            link.style.display = "block";
                             link.innerText = "[下載] " + item.name;
-                            menuElement.appendChild(link);
-                            childItems.push(link);
+                            itemLi.appendChild(link);
                         } else {
-                            itemLi.className = 'menu-item';
                             itemLi.innerText = item.name;
                             itemLi.onclick = () => loadItem(item, itemLi);
-                            menuElement.appendChild(itemLi);
-                            childItems.push(itemLi);
                         }
+                        
+                        menuElement.appendChild(itemLi);
+                        childElements.push(itemLi);
                     });
                 });
 
@@ -240,7 +287,7 @@
                     if (window.innerWidth <= 768) return;
                     catLi.classList.toggle('closed');
                     const closed = catLi.classList.contains('closed');
-                    childItems.forEach(el => el.classList.toggle('hidden', closed));
+                    childElements.forEach(el => el.classList.toggle('hidden', closed));
                 };
             });
         }
@@ -249,12 +296,13 @@
             const frame = document.getElementById('content-frame');
             if (item.type === 'info') {
                 loadInfoPage(item.infoId, clickedElement);
-                return;
+            } else {
+                frame.removeAttribute('srcdoc');
+                frame.src = item.path;
+                setActive(clickedElement);
+                collapseSidebarOnMobile();
             }
-            frame.removeAttribute('srcdoc');
-            frame.src = item.path;
-            setActive(clickedElement);
-            collapseSidebarOnMobile();
+            trackAction('瀏覽教材', item.name);
         }
 
         function loadInfoPage(infoId, clickedElement) {
@@ -272,6 +320,10 @@
                     ul, ol { padding-left: 1.5em; }
                     li { margin-bottom: 6px; }
                     b, strong { color: #1d4ed8; }
+                    i, em { font-style: italic; }
+                    u { text-decoration: underline; }
+                    img { max-width: 100%; height: auto; border-radius: 6px; margin: 10px 0; }
+                    iframe { max-width: 100%; width: 100%; border-radius: 6px; margin: 10px 0; border: 1px solid #e5e7eb; }
                     .tip { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 24px; font-size: 0.95em; color: #374151; }
                 </style></head>
                 <body><h2>${page.title}</h2>${page.body}</body></html>`;
@@ -290,6 +342,12 @@
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function trackAction(action, item) {
+            if (!TRACKING_URL) return;
+            const url = TRACKING_URL + "?user=" + encodeURIComponent(currentUserName) + "&action=" + encodeURIComponent(action) + "&item=" + encodeURIComponent(item || '');
+            fetch(url, { mode: 'no-cors' }).catch(e => {});
         }
     </script>
 </body>
