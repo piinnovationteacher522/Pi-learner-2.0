@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>STEM 導師教學資源平台</title>
+    <style>
+        :root {
+            --blue: #2563eb; --blue-dark: #1d4ed8; --blue-light: #eff6ff;
+            --black: #111827; --black-deep: #0b0f1a; --gray-line: #e5e7eb; --gray-text: #6b7280;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif; touch-action: manipulation; }
+        body, html { height: 100dvh; background-color: #ffffff; overflow: hidden; color: #111827; }
+
+        #login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; background: #f9fafb; padding: 20px; }
+        .login-box { background: white; padding: 44px 36px; border-radius: 12px; border: 1px solid var(--gray-line); box-shadow: 0 2px 12px rgba(17,24,39,0.06); width: 100%; max-width: 400px; text-align: center; }
+        .login-box h2 { color: #111827; margin-bottom: 6px; font-size: 1.5em; }
+        .login-box .subtitle { color: var(--gray-text); margin-bottom: 20px; font-size: 0.95em; }
+        .login-box input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95em; }
+        .login-btn { width: 100%; padding: 13px; background-color: var(--blue); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .login-btn:hover { background-color: var(--blue-dark); }
+        #login-error { color: #dc2626; font-size: 0.85em; margin-bottom: 15px; display: none; }
+        .login-hint { margin-top: 20px; font-size: 0.8em; color: #9ca3af; }
+
+        #dashboard-container { display: none; height: 100dvh; flex-direction: row; }
+        #sidebar { width: 260px; background-color: var(--black); color: #f9fafb; display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease-in-out, max-height 0.3s ease-in-out; overflow-x: hidden; white-space: nowrap; }
+        #sidebar.collapsed { width: 0; }
+        .tutor-info { padding: 18px 20px; background-color: var(--black-deep); text-align: center; border-bottom: 1px solid #1f2937; }
+        .tutor-info h3 { font-size: 1.05em; font-weight: bold; }
+        .logout-btn { margin-top: 10px; padding: 6px 20px; background: transparent; border: 1px solid #374151; color: #9ca3af; border-radius: 20px; font-size: 0.8em; cursor: pointer; transition: 0.2s; }
+        .logout-btn:hover { border-color: var(--blue); color: white; background: var(--blue); }
+
+        .menu-list { flex-grow: 1; overflow-y: auto; list-style-type: none; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
+        .menu-category { padding: 14px 18px; font-size: 0.98em; font-weight: bold; color: white; background: transparent; border-left: 4px solid var(--blue); margin-top: 14px; display: flex; align-items: center; cursor: pointer; user-select: none; }
+        .menu-category:hover { background: #1f2937; }
+        .menu-category .cat-arrow { margin-left: auto; font-size: 0.85em; color: #6b7280; }
+        .menu-category.closed .cat-arrow { transform: rotate(-90deg); }
+        .menu-section { padding: 14px 22px 6px 22px; font-size: 0.78em; font-weight: bold; color: #9ca3af; letter-spacing: 1px; }
+        .menu-item { padding: 11px 20px 11px 34px; cursor: pointer; transition: 0.2s; font-size: 0.92em; color: #d1d5db; text-decoration: none; display: block; }
+        .menu-item:hover { background-color: #1f2937; color: white; }
+        .menu-item.active { background-color: var(--blue); color: white; }
+        .hidden { display: none !important; }
+
+        #content-area { flex-grow: 1; position: relative; min-height: 0; min-width: 0; }
+        iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; background-color: white; }
+        #toggle-sidebar-btn { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(17, 24, 39, 0.85); color: white; border: none; border-radius: 8px; width: 50px; height: 40px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: 0.2s; padding: 0; }
+        #toggle-sidebar-btn:hover { background: var(--blue); }
+
+        @media (max-width: 768px) {
+            #dashboard-container { flex-direction: column; }
+            #sidebar { width: 100%; height: auto; max-height: 45dvh; flex-direction: column; }
+            #sidebar.collapsed { width: 100%; max-height: 0; }
+            .tutor-info { padding: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+            .logout-btn { margin-top: 0; }
+            .menu-list { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding-bottom: 0; scrollbar-width: none; align-items: stretch; }
+            .menu-list::-webkit-scrollbar { display: none; }
+            .menu-category { margin-top: 0; border-left: none; border-bottom: 4px solid var(--blue); border-right: 2px solid #1f2937; padding: 15px; }
+            .menu-category .cat-arrow { display: none; }
+            .menu-section { border-right: 1px solid #1f2937; padding: 15px; display: flex; align-items: center; }
+            .menu-item { border-right: 1px solid #1f2937; padding: 15px; display: flex; align-items: center; }
+            .menu-item.active { border-bottom: 4px solid #93c5fd; }
+        }
+    </style>
+</head>
+<body>
+    <div id="login-container">
+        <div class="login-box">
+            <h2>導師專區</h2>
+            <div class="subtitle">登入以查看教材資源</div>
+            <div id="login-error">帳號或密碼錯誤</div>
+            <input type="text" id="username" placeholder="帳號">
+            <input type="password" id="password" placeholder="密碼" onkeydown="if(event.key==='Enter') doLogin()">
+            <button class="login-btn" onclick="doLogin()">登入</button>
+            <div class="login-hint">本平台僅供機構導師教學使用</div>
+        </div>
+    </div>
+
+    <div id="dashboard-container">
+        <div id="sidebar">
+            <div class="tutor-info">
+                <div>
+                    <h3 id="display-name">導師</h3>
+                </div>
+                <button class="logout-btn" onclick="location.reload()">登出</button>
+            </div>
+            <ul class="menu-list" id="menu"></ul>
+        </div>
+        <div id="content-area">
+            <button id="toggle-sidebar-btn" onclick="toggleSidebar()">選單</button>
+            <iframe id="content-frame" src="about:blank" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+    </div>
+
+    <script>
+        /*__CONFIG_START__*/
+        const MENU_CONFIG = [
+    {
+        "category": "導師學習",
+        "sections": [
+            {
+                "sectionName": "興趣班須知",
+                "items": [
+                    {
+                        "name": "1. 導師教學須知",
+                        "type": "info",
+                        "infoId": "tutor-notice"
+                    },
+                    {
+                        "name": "2. 教學指引 (下載)",
+                        "type": "link",
+                        "path": "edit 圖片用 ura yaha.svg"
+                    }
+                ]
+            }
+        ]
+    }
+];
+
+        const INFO_PAGES = {
+    "welcome": {
+        "title": "歡迎",
+        "body": "<p>歡迎登入教學資源平台。<\/p>"
+    },
+    "tutor-notice": {
+        "title": "導師教學須知",
+        "body": "<p>教學內容...<\/p>"
+    }
+};
+
+        const ACCOUNTS = [
+    {
+        "username": "admin",
+        "password": "123",
+        "perms": [
+            "ALL"
+        ]
+    }
+];
+        /*__CONFIG_END__*/
+
+        function doLogin() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const user = ACCOUNTS ? ACCOUNTS.find(acc => acc.username === u && acc.password === p) : null;
+            
+            if(user) {
+                document.getElementById('login-error').style.display = 'none';
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('dashboard-container').style.display = 'flex';
+                document.getElementById('display-name').innerText = user.username;
+                buildMenu(user.perms || []);
+                loadInfoPage('welcome', null);
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        function buildMenu(userPerms) {
+            const menuElement = document.getElementById('menu');
+            menuElement.innerHTML = "";
+            const isSuperAdmin = userPerms.includes('ALL');
+
+            MENU_CONFIG.forEach(cat => {
+                if (!isSuperAdmin && !userPerms.includes(cat.category)) return;
+
+                const catLi = document.createElement('li');
+                catLi.className = 'menu-category';
+                catLi.innerHTML = `<span>${cat.category}</span><span class="cat-arrow">v</span>`;
+                menuElement.appendChild(catLi);
+
+                const childItems = [];
+
+                cat.sections.forEach(section => {
+                    const sectionLi = document.createElement('li');
+                    sectionLi.className = 'menu-section';
+                    sectionLi.innerText = section.sectionName;
+                    menuElement.appendChild(sectionLi);
+                    childItems.push(sectionLi);
+
+                    section.items.forEach(item => {
+                        const itemLi = document.createElement('li');
+                        
+                        if (item.type === 'link') {
+                            const link = document.createElement('a');
+                            link.className = 'menu-item';
+                            link.href = item.path;
+                            link.target = "_blank";
+                            link.innerText = "[下載] " + item.name;
+                            menuElement.appendChild(link);
+                            childItems.push(link);
+                        } else {
+                            itemLi.className = 'menu-item';
+                            itemLi.innerText = item.name;
+                            itemLi.onclick = () => loadItem(item, itemLi);
+                            menuElement.appendChild(itemLi);
+                            childItems.push(itemLi);
+                        }
+                    });
+                });
+
+                catLi.onclick = () => {
+                    if (window.innerWidth <= 768) return;
+                    catLi.classList.toggle('closed');
+                    const closed = catLi.classList.contains('closed');
+                    childItems.forEach(el => el.classList.toggle('hidden', closed));
+                };
+            });
+        }
+
+        function loadItem(item, clickedElement) {
+            const frame = document.getElementById('content-frame');
+            if (item.type === 'info') {
+                loadInfoPage(item.infoId, clickedElement);
+                return;
+            }
+            frame.removeAttribute('srcdoc');
+            frame.src = item.path;
+            setActive(clickedElement);
+            collapseSidebarOnMobile();
+        }
+
+        function loadInfoPage(infoId, clickedElement) {
+            const page = INFO_PAGES[infoId];
+            if (!page) return;
+            const frame = document.getElementById('content-frame');
+            frame.src = 'about:blank';
+            frame.srcdoc = `<!DOCTYPE html>
+                <html lang="zh-HK"><head><meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; padding: 70px 8% 40px 8%; color: #111827; line-height: 1.9; background: #ffffff; }
+                    h2 { color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+                    h3 { color: #2563eb; margin: 22px 0 8px 0; }
+                    ul, ol { padding-left: 1.5em; }
+                    li { margin-bottom: 6px; }
+                    b, strong { color: #1d4ed8; }
+                    .tip { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 24px; font-size: 0.95em; color: #374151; }
+                </style></head>
+                <body><h2>${page.title}</h2>${page.body}</body></html>`;
+            setActive(clickedElement);
+            if (clickedElement) collapseSidebarOnMobile();
+        }
+
+        function setActive(clickedElement) {
+            document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
+            if (clickedElement) clickedElement.classList.add('active');
+        }
+
+        function collapseSidebarOnMobile() {
+            if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+    </script>
+</body>
+</html>
