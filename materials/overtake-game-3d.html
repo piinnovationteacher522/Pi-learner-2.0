@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>單程路爬頭王 3D</title>
+<style>
+  :root{
+    --line:#f2c744;
+    --ink:#f5f1e6;
+    --danger:#ff5a4d;
+    --ok:#7ad07a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    background:#0d1117;color:var(--ink);
+    font-family:"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    user-select:none;
+  }
+  #game{position:fixed;inset:0;display:block;}
+  .hud{
+    position:fixed;top:14px;left:14px;right:14px;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    pointer-events:none;font-variant-numeric:tabular-nums;z-index:5;
+  }
+  .chip{
+    background:rgba(10,13,18,.66);border:1px solid rgba(255,255,255,.14);
+    border-radius:12px;padding:8px 14px;font-size:13px;line-height:1.5;
+    backdrop-filter:blur(4px);
+  }
+  .chip b{font-size:22px;}
+  #speedChip b{color:var(--line);}
+  #passChip b{color:var(--ok);}
+  .title{
+    position:fixed;top:14px;left:50%;transform:translateX(-50%);
+    font-weight:900;letter-spacing:5px;font-size:15px;color:rgba(255,255,255,.75);
+    z-index:5;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.6);
+  }
+  .title span{color:var(--line);}
+  .warn{
+    position:fixed;left:50%;top:30%;transform:translateX(-50%);
+    color:var(--danger);font-weight:900;font-size:clamp(20px,4vw,32px);letter-spacing:4px;
+    text-shadow:0 0 16px rgba(255,90,77,.9);z-index:5;
+    pointer-events:none;opacity:0;
+  }
+  .warn.show{opacity:1;animation:blink .35s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.12;}}
+  .overlay{
+    position:fixed;inset:0;z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    background:rgba(8,10,14,.72);backdrop-filter:blur(6px);
+    text-align:center;padding:24px;
+  }
+  .overlay.hidden{display:none;}
+  .overlay h2{font-size:clamp(26px,5vw,38px);letter-spacing:5px;}
+  .overlay .big{font-size:46px;color:var(--line);font-weight:900;}
+  .overlay p{font-size:14px;line-height:2;color:#c9cfda;max-width:420px;}
+  kbd{
+    background:#232a35;border:1px solid #4a5563;border-bottom-width:3px;
+    border-radius:6px;padding:2px 9px;font-family:inherit;font-weight:700;color:#fff;
+  }
+  button{
+    font:inherit;font-weight:800;letter-spacing:3px;
+    background:var(--line);color:#211a05;border:0;border-radius:12px;
+    padding:14px 40px;cursor:pointer;font-size:17px;
+    box-shadow:0 5px 0 #a8871f;
+  }
+  button:active{transform:translateY(4px);box-shadow:0 1px 0 #a8871f;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="title">單程路 <span>爬頭王</span> 3D</div>
+
+<div class="hud">
+  <div class="chip" id="speedChip">車速<br><b id="speedVal">0</b> km/h</div>
+  <div class="chip" id="passChip">爬頭 <b id="passVal">0</b> 部<br>里程 <span id="distVal">0.0</span> km</div>
+</div>
+
+<div class="warn" id="warn">⚠ 對頭車！快啲入線！</div>
+
+<div class="overlay" id="startOverlay">
+  <h2>單程路爬頭王 <span style="color:var(--line)">3D</span></h2>
+  <p>
+    你架黃色車正常會自動跟住前車。<br>
+    想快，就切出對面線爬頭，再入番自己線。<br>
+    對面線有迎面車，<b style="color:var(--danger)">撞到即輸</b>！
+  </p>
+  <p>
+    <kbd>W</kbd> 加速&nbsp;&nbsp;<kbd>S</kbd> 減速&nbsp;&nbsp;
+    <kbd>A</kbd> 切左線&nbsp;&nbsp;<kbd>D</kbd> 切右線
+  </p>
+  <button id="startBtn">開車！</button>
+</div>
+
+<div class="overlay hidden" id="overOverlay">
+  <h2 style="color:var(--danger)">撞車喇！💥</h2>
+  <div>總共爬咗 <span class="big" id="finalPass">0</span> 部車頭</div>
+  <p>行咗 <span id="finalDist">0.0</span> km</p>
+  <button id="restartBtn">再嚟一鋪（R）</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  // ── 基本設定 ─────────────────────────────
+  const LANE_L = -2.1;   // 對面線（迎面）
+  const LANE_R =  2.1;   // 自己線
+  const ROAD_HALF = 4.4;
+  const SCALE = 0.14;    // km/h → units/s
+  const CAR_LEN = 4.2, CAR_WID = 2.0;
+  const VIEW_FAR = -230; // 最遠生成位
+
+  const keys = {};
+  let state = 'menu';
+  let player, cars, distanceKm, passCount, elapsed,
+      oncomingNextZ, spawnAheadTimer, shakeT, particles;
+
+  // ── Three.js 場景 ────────────────────────
+  const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('game'), antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fc7e8);
+  scene.fog = new THREE.Fog(0x9fc7e8, 60, 210);
+
+  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+
+  function resize(){
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize); resize();
+
+  // 光
+  scene.add(new THREE.HemisphereLight(0xdff0ff, 0x3a5a30, 0.85));
+  const sun = new THREE.DirectionalLight(0xfff2d8, 1.0);
+  sun.position.set(18, 30, -10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024,1024);
+  sun.shadow.camera.left=-30; sun.shadow.camera.right=30;
+  sun.shadow.camera.top=30; sun.shadow.camera.bottom=-60;
+  sun.shadow.camera.far=120;
+  scene.add(sun);
+
+  // 草地
+  const grass = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 600),
+    new THREE.MeshLambertMaterial({color:0x4a7c3f})
+  );
+  grass.rotation.x = -Math.PI/2;
+  grass.position.set(0, -0.02, -180);
+  grass.receiveShadow = true;
+  scene.add(grass);
+
+  // 馬路
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(ROAD_HALF*2, 600),
+    new THREE.MeshLambertMaterial({color:0x3b3f46})
+  );
+  road.rotation.x = -Math.PI/2;
+  road.position.set(0, 0, -180);
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // 路肩白線（實線，直接跟路唔使郁）
+  const shoulderMat = new THREE.MeshBasicMaterial({color:0xe8e6df});
+  [-1,1].forEach(s => {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 600), shoulderMat);
+    line.rotation.x = -Math.PI/2;
+    line.position.set(s*(ROAD_HALF-0.25), 0.005, -180);
+    scene.add(line);
+  });
+
+  // 中間黃色虛線（循環滾動）
+  const dashMat = new THREE.MeshBasicMaterial({color:0xf2c744});
+  const dashes = [];
+  for (let z = 10; z > -280; z -= 8){
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 3.2), dashMat);
+    d.rotation.x = -Math.PI/2;
+    d.position.set(0, 0.006, z);
+    scene.add(d); dashes.push(d);
+  }
+
+  // 樹（循環滾動）
+  const trees = [];
+  const trunkMat = new THREE.MeshLambertMaterial({color:0x6b4a2f});
+  const leafMat  = new THREE.MeshLambertMaterial({color:0x2f5a2a});
+  function makeTree(x, z){
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,1.6,6), trunkMat);
+    trunk.position.y = 0.8;
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(1.4, 3.2, 7), leafMat);
+    leaf.position.y = 3.0;
+    trunk.castShadow = leaf.castShadow = true;
+    g.add(trunk, leaf);
+    g.position.set(x, 0, z);
+    g.scale.setScalar(0.8 + Math.random()*0.7);
+    scene.add(g); trees.push(g);
+    return g;
+  }
+  for (let z = 5; z > -280; z -= 16){
+    makeTree(-ROAD_HALF - 3 - Math.random()*7, z - Math.random()*8);
+    makeTree( ROAD_HALF + 3 + Math.random()*7, z - Math.random()*8);
+  }
+
+  // ── 車模型 ───────────────────────────────
+  function buildCarMesh(colorHex){
+    const g = new THREE.Group();
+    const bodyMat = new THREE.MeshLambertMaterial({color:colorHex});
+    const darkMat = new THREE.MeshLambertMaterial({color:0x1d232c});
+    const glassMat = new THREE.MeshLambertMaterial({color:0xbfe3ef});
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(CAR_WID, 0.75, CAR_LEN), bodyMat);
+    body.position.y = 0.62; body.castShadow = true;
+    g.add(body);
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(CAR_WID*0.85, 0.62, CAR_LEN*0.5), bodyMat);
+    cabin.position.set(0, 1.25, 0.15); cabin.castShadow = true;
+    g.add(cabin);
+
+    const wind = new THREE.Mesh(new THREE.BoxGeometry(CAR_WID*0.8, 0.5, 0.08), glassMat);
+    wind.position.set(0, 1.25, -CAR_LEN*0.25+0.1); wind.rotation.x = 0.28;
+    g.add(wind);
+    const rear = wind.clone(); rear.position.z = CAR_LEN*0.25+0.2; rear.rotation.x = -0.28;
+    g.add(rear);
+
+    // 車轆
+    const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.3, 10);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz]) => {
+      const w = new THREE.Mesh(wheelGeo, darkMat);
+      w.rotation.z = Math.PI/2;
+      w.position.set(sx*(CAR_WID/2), 0.36, sz*(CAR_LEN/2-0.85));
+      g.add(w);
+    });
+
+    // 頭燈 / 尾燈
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.2,0.1),
+      new THREE.MeshBasicMaterial({color:0xfff3b0}));
+    head.position.set(-0.6, 0.72, -CAR_LEN/2-0.02); g.add(head);
+    const head2 = head.clone(); head2.position.x = 0.6; g.add(head2);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.18,0.1),
+      new THREE.MeshBasicMaterial({color:0xff3b2f}));
+    tail.position.set(-0.6, 0.72, CAR_LEN/2+0.02); g.add(tail);
+    const tail2 = tail.clone(); tail2.position.x = 0.6; g.add(tail2);
+
+    return g;
+  }
+
+  const COLORS_SAME = [0x5b8dd9,0xc76f3b,0x8a6fbf,0x3fa08a,0xb8b8b8,0xd9a05b];
+  const COLORS_ON   = [0xc94f4f,0xd97b2f,0xa04f9e,0xc9c14f,0xe0e0e0];
+
+  const playerMesh = buildCarMesh(0xf2c744);
+  scene.add(playerMesh);
+
+  // ── 交通車輛 ─────────────────────────────
+  function makeCar(kind, z, speed){
+    const palette = kind==='same' ? COLORS_SAME : COLORS_ON;
+    const mesh = buildCarMesh(palette[Math.floor(Math.random()*palette.length)]);
+    if (kind === 'oncoming') mesh.rotation.y = Math.PI; // 車頭向住你
+    mesh.position.set(kind==='same' ? LANE_R : LANE_L, 0, z);
+    scene.add(mesh);
+    return { kind, mesh, speed, x: mesh.position.x, z, passed:false };
+  }
+
+  function clearCars(){
+    if (cars) for (const c of cars) scene.remove(c.mesh);
+    cars = [];
+  }
+
+  // ── 爆炸粒子 ─────────────────────────────
+  const partMatA = new THREE.MeshBasicMaterial({color:0xffb347});
+  const partMatB = new THREE.MeshBasicMaterial({color:0xff5a4d});
+  const partGeo = new THREE.BoxGeometry(0.3,0.3,0.3);
+  function explode(x, z){
+    particles = [];
+    for (let i=0;i<40;i++){
+      const m = new THREE.Mesh(partGeo, Math.random()<0.5 ? partMatA : partMatB);
+      m.position.set(x, 0.8, z);
+      scene.add(m);
+      particles.push({
+        mesh:m,
+        vx:(Math.random()-0.5)*14,
+        vy:Math.random()*10+3,
+        vz:(Math.random()-0.5)*14,
+        life:1.2+Math.random()*0.6
+      });
+    }
+  }
+  function clearParticles(){
+    if (particles) for (const p of particles) scene.remove(p.mesh);
+    particles = null;
+  }
+
+  // ── 重設 ─────────────────────────────────
+  function reset(){
+    player = { lane:1, x:LANE_R, speed:60, maxSpeed:150, minSpeed:30 };
+    clearCars(); clearParticles();
+    distanceKm = 0; passCount = 0; elapsed = 0; shakeT = 0;
+    spawnAheadTimer = 0;
+    oncomingNextZ = -40;
+    cars.push(makeCar('same', -45, 52));
+    cars.push(makeCar('oncoming', -90, 70));
+    cars.push(makeCar('oncoming', -170, 80));
+    playerMesh.visible = true;
+    document.getElementById('passVal').textContent = '0';
+  }
+
+  // ── 輸入 ─────────────────────────────────
+  addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    keys[k] = true;
+    if (state === 'play'){
+      if (k === 'a') player.lane = 0;
+      if (k === 'd') player.lane = 1;
+    }
+    if (k === 'r' && state === 'over') start();
+    if ((k === ' ' || k === 'enter') && state === 'menu') start();
+  });
+  addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+  document.getElementById('startBtn').onclick = start;
+  document.getElementById('restartBtn').onclick = start;
+
+  function start(){
+    reset();
+    state = 'play';
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.getElementById('overOverlay').classList.add('hidden');
+  }
+
+  function gameOver(){
+    state = 'over';
+    shakeT = 0.8;
+    explode(player.x, 0);
+    playerMesh.visible = false;
+    document.getElementById('finalPass').textContent = passCount;
+    document.getElementById('finalDist').textContent = distanceKm.toFixed(1);
+    document.getElementById('warn').classList.remove('show');
+    setTimeout(() => document.getElementById('overOverlay').classList.remove('hidden'), 650);
+  }
+
+  // ── 更新 ─────────────────────────────────
+  function update(dt){
+    elapsed += dt;
+    const difficulty = Math.min(1, elapsed/90);
+
+    // 目標車速
+    let target;
+    if (keys['w']) target = player.maxSpeed;
+    else if (keys['s']) target = player.minSpeed;
+    else target = Math.max(55, player.speed - 6*dt);
+
+    // 跟車：喺自己線，前面有車就咬住佢車尾
+    const inRight = Math.abs(player.x - LANE_R) < 0.9;
+    if (inRight){
+      let front = null;
+      for (const c of cars){
+        if (c.kind !== 'same') continue;
+        if (Math.abs(c.x - LANE_R) > 1.2) continue;
+        const gap = -c.z - CAR_LEN;    // 佢車尾到我車頭（player z=0）
+        if (gap > -CAR_LEN && gap < 20){
+          if (!front || c.z > front.z) front = c;
+        }
+      }
+      if (front){
+        const gap = -front.z - CAR_LEN;
+        if (gap < 5)       target = Math.min(target, front.speed - 8);
+        else if (gap < 14) target = Math.min(target, front.speed);
+      }
+    }
+
+    const accel = target > player.speed ? 42 : 90;
+    if (target > player.speed) player.speed = Math.min(target, player.speed + accel*dt);
+    else                       player.speed = Math.max(target, player.speed - accel*dt);
+    player.speed = Math.max(player.minSpeed, Math.min(player.maxSpeed, player.speed));
+
+    // 切線
+    const targetX = player.lane === 0 ? LANE_L : LANE_R;
+    const prevX = player.x;
+    player.x += (targetX - player.x) * Math.min(1, dt*7);
+    const lateralV = (player.x - prevX)/Math.max(dt,1e-4);
+
+    playerMesh.position.x = player.x;
+    playerMesh.rotation.z = -lateralV * 0.03;                 // 側身
+    playerMesh.rotation.y = -lateralV * 0.045;                // 車頭指向
+
+    const uPerSec = player.speed * SCALE;
+    distanceKm += player.speed * dt / 3600 * 10;
+
+    // 路面虛線 / 樹滾動
+    for (const d of dashes){
+      d.position.z += uPerSec*dt;
+      if (d.position.z > 12) d.position.z -= 290;
+    }
+    for (const t of trees){
+      t.position.z += uPerSec*dt;
+      if (t.position.z > 12){
+        t.position.z -= 290;
+        const side = t.position.x < 0 ? -1 : 1;
+        t.position.x = side*(ROAD_HALF + 3 + Math.random()*7);
+      }
+    }
+
+    // 交通移動
+    for (const c of cars){
+      if (c.kind === 'same'){
+        c.z += (player.speed - c.speed) * SCALE * dt;
+        for (const o of cars){
+          if (o === c || o.kind !== 'same') continue;
+          const gap = (o.z - CAR_LEN) - c.z;   // c 前面係 o
+          if (o.z < c.z && c.z - o.z < CAR_LEN + 4) c.speed = Math.min(c.speed, o.speed);
+        }
+        if (!c.passed && c.z > 2.2){
+          c.passed = true; passCount++;
+          document.getElementById('passVal').textContent = passCount;
+        }
+      } else {
+        c.z += (player.speed + c.speed) * SCALE * dt;
+      }
+      c.mesh.position.z = c.z;
+    }
+    // 移除離開範圍嘅車
+    cars = cars.filter(c => {
+      const keep = c.z < 25 && c.z > -400;
+      if (!keep) scene.remove(c.mesh);
+      return keep;
+    });
+
+    // 生成：自己線慢車
+    spawnAheadTimer -= dt;
+    const aheadCount = cars.filter(c => c.kind==='same' && c.z < 0).length;
+    if (spawnAheadTimer <= 0 && aheadCount < 2 + Math.round(difficulty)){
+      let topMost = -20;
+      for (const c of cars) if (c.kind==='same') topMost = Math.min(topMost, c.z);
+      const z = Math.min(topMost - 35 - Math.random()*35, VIEW_FAR*0.55);
+      cars.push(makeCar('same', z, 45 + Math.random()*30));
+      spawnAheadTimer = 1.2;
+    }
+
+    // 生成：對面車龍（留空窗俾你爬頭）
+    let topOn = Infinity;
+    for (const c of cars) if (c.kind==='oncoming') topOn = Math.min(topOn, c.z);
+    if (topOn === Infinity) topOn = 0;
+    if (topOn > oncomingNextZ){
+      const convoy = Math.random() < 0.35 + difficulty*0.25 ? (2 + (Math.random()*2|0)) : 1;
+      let z = Math.min(topOn, -20) - 26;
+      z = Math.min(z, VIEW_FAR);
+      const sp = 60 + Math.random()*40 + difficulty*15;
+      for (let i=0;i<convoy;i++){
+        cars.push(makeCar('oncoming', z, sp + Math.random()*8));
+        z -= 22 + Math.random()*16;
+      }
+      const gap = 55 + Math.random()*95 * (1.2 - difficulty*0.5);
+      oncomingNextZ = z + gap;   // 最頂嗰部落到呢個位先再生成
+    }
+
+    // 撞車判定（x/z 包圍盒）
+    for (const c of cars){
+      if (Math.abs(c.x - player.x) < CAR_WID*0.85 &&
+          Math.abs(c.z) < CAR_LEN*0.9){
+        gameOver();
+        return;
+      }
+    }
+
+    // 迎面車警告
+    let danger = false;
+    if (player.lane === 0 || player.x < 0.3){
+      for (const c of cars){
+        if (c.kind==='oncoming' && c.z < 0 && c.z > -75){ danger = true; break; }
+      }
+    }
+    document.getElementById('warn').classList.toggle('show', danger);
+
+    // HUD
+    document.getElementById('speedVal').textContent = Math.round(player.speed);
+    document.getElementById('distVal').textContent = distanceKm.toFixed(1);
+  }
+
+  function updateParticles(dt){
+    if (!particles) return;
+    for (const p of particles){
+      if (p.life <= 0){ p.mesh.visible = false; continue; }
+      p.life -= dt;
+      p.vy -= 18*dt;
+      p.mesh.position.x += p.vx*dt;
+      p.mesh.position.y += p.vy*dt;
+      p.mesh.position.z += p.vz*dt;
+      if (p.mesh.position.y < 0.1){ p.mesh.position.y = 0.1; p.vy *= -0.4; p.vx*=0.7; p.vz*=0.7; }
+      p.mesh.rotation.x += 6*dt; p.mesh.rotation.y += 5*dt;
+    }
+  }
+
+  // ── 鏡頭 ─────────────────────────────────
+  function updateCamera(dt){
+    const speedK = player ? (player.speed-60)/90 : 0;
+    const tx = (player ? player.x : LANE_R) * 0.75;
+    camera.position.x += (tx - camera.position.x) * Math.min(1, dt*5);
+    camera.position.y = 4.6 + speedK*0.4;
+    camera.position.z = 8.5 + speedK*1.2;   // 快車時鏡頭拉遠少少
+    let sx = 0, sy = 0;
+    if (shakeT > 0){
+      shakeT -= dt;
+      const s = shakeT * 0.55;
+      sx = (Math.random()-0.5)*s; sy = (Math.random()-0.5)*s;
+    }
+    camera.lookAt((player ? player.x : LANE_R)*0.55 + sx, 1.1 + sy, -22);
+    // FOV 隨速度輕微變化，加強速度感
+    const fovTarget = 62 + speedK*10;
+    camera.fov += (fovTarget - camera.fov)*Math.min(1, dt*4);
+    camera.updateProjectionMatrix();
+  }
+
+  // ── 主循環 ───────────────────────────────
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.033, (now-last)/1000);
+    last = now;
+    if (state === 'play') update(dt);
+    updateParticles(dt);
+    updateCamera(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
