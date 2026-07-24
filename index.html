@@ -61,21 +61,20 @@
         /* 專屬 iPad / 平板與手機畫面相容優化 (Max-width: 1024px) */
         @media (max-width: 1024px) {
             #dashboard-container { flex-direction: column; }
-            #sidebar { width: 100%; height: auto; max-height: 48dvh; flex-direction: column; border-bottom: 1px solid #374151; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+            #sidebar { width: 100%; height: auto; max-height: 60dvh; flex-direction: column; border-bottom: 1px solid #374151; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: max-height 0.3s ease-in-out; }
             #sidebar.collapsed { width: 100%; max-height: 0; border-bottom: none; box-shadow: none; }
             .tutor-info { padding: 12px 16px; flex-direction: row; justify-content: space-between; }
             .tutor-info h3 { font-size: 1em; }
             .logout-btn { margin-top: 0; padding: 6px 16px; min-height: 34px; }
             .search-box { padding: 10px 14px; border-bottom: 1px solid #1f2937; }
             
-            /* 在平板與手機直立畫面上，將選單轉換為舒適的橫向或大區塊滑動結構 */
-            .menu-list { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding-bottom: 0; scrollbar-width: none; align-items: stretch; -webkit-overflow-scrolling: touch; }
-            .menu-list::-webkit-scrollbar { display: none; }
-            .menu-category { margin-top: 0; border-left: none; border-bottom: 4px solid var(--blue); border-right: 1px solid #1f2937; padding: 14px 18px; flex-shrink: 0; }
-            .menu-category .cat-arrow { display: none; }
-            .menu-section { border-right: 1px solid #1f2937; padding: 14px 18px; display: flex; align-items: center; flex-shrink: 0; }
-            .menu-item { border-right: 1px solid #1f2937; padding: 14px 18px; display: flex; align-items: center; flex-shrink: 0; white-space: nowrap; }
-            .menu-item.active { border-bottom: 4px solid #93c5fd; }
+            /* 行動裝置與 iPad 垂直摺疊選單 (Accordion) 優化：讓手機點擊大分區能順暢展開小節與教材 */
+            .menu-list { display: block; overflow-y: auto; overflow-x: hidden; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
+            .menu-category { margin-top: 8px; border-left: 4px solid var(--blue); border-bottom: none; border-right: none; padding: 14px 18px; }
+            .menu-category .cat-arrow { display: inline; }
+            .menu-section { border-right: none; padding: 14px 22px 6px 22px; }
+            .menu-item { border-right: none; padding: 14px 20px 14px 34px; white-space: normal; word-break: break-word; }
+            .menu-item.active { border-bottom: none; border-left: 4px solid #93c5fd; background-color: var(--blue); }
         }
     </style>
 </head>
@@ -259,7 +258,9 @@
     {
         "username": "1234",
         "password": "1234",
-        "perms": []
+        "perms": [
+            "教材"
+        ]
     }
 ];
 
@@ -300,6 +301,7 @@
             const isSuperAdmin = currentUserPerms.includes('ALL');
             const searchMode = keyword.trim() !== '';
             const searchKw = keyword.trim().toLowerCase();
+            let visibleCatCount = 0;
 
             MENU_CONFIG.forEach(cat => {
                 if (!isSuperAdmin && !currentUserPerms.includes(cat.category)) return;
@@ -316,9 +318,14 @@
                 });
 
                 if (searchMode && visibleSections.length === 0) return;
+                
+                // 判斷是否為第一個顯示的大分區：如果不是搜尋模式且為第一個大分區，預設自動展開！
+                const isFirstVisibleCat = (visibleCatCount === 0);
+                const shouldClose = !searchMode && !isFirstVisibleCat;
+                visibleCatCount++;
 
                 const catLi = document.createElement('li');
-                catLi.className = 'menu-category' + (searchMode ? '' : ' closed');
+                catLi.className = 'menu-category' + (shouldClose ? ' closed' : '');
                 catLi.innerHTML = `<span>${cat.category}</span><span class="cat-arrow">v</span>`;
                 menuElement.appendChild(catLi);
 
@@ -326,14 +333,14 @@
 
                 visibleSections.forEach(section => {
                     const sectionLi = document.createElement('li');
-                    sectionLi.className = 'menu-section' + (searchMode ? '' : ' hidden');
+                    sectionLi.className = 'menu-section' + (shouldClose ? ' hidden' : '');
                     sectionLi.innerText = section.sectionName;
                     menuElement.appendChild(sectionLi);
                     childElements.push(sectionLi);
 
                     section.items.forEach(item => {
                         const itemLi = document.createElement('li');
-                        itemLi.className = 'menu-item' + (searchMode ? '' : ' hidden');
+                        itemLi.className = 'menu-item' + (shouldClose ? ' hidden' : '');
                         
                         if (item.type === 'link') {
                             const link = document.createElement('a');
@@ -354,8 +361,8 @@
                     });
                 });
 
+                // 移除舊版 iPhone/iPad 行動裝置點擊鎖定！讓任何畫面上點擊大分區都能順暢向下摺疊與展開
                 catLi.onclick = () => {
-                    if (window.innerWidth <= 1024) return;
                     catLi.classList.toggle('closed');
                     const closed = catLi.classList.contains('closed');
                     childElements.forEach(el => el.classList.toggle('hidden', closed));
