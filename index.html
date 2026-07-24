@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>STEM 導師教學資源平台</title>
     <style>
@@ -11,61 +11,70 @@
             --black: #111827; --black-deep: #0b0f1a; --gray-line: #e5e7eb; --gray-text: #6b7280;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif; touch-action: manipulation; }
-        body, html { height: 100dvh; background-color: #ffffff; overflow: hidden; color: #111827; }
+        body, html { height: 100dvh; background-color: #ffffff; overflow: hidden; color: #111827; -webkit-text-size-adjust: 100%; }
 
         #login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; background: #f9fafb; padding: 20px; }
-        .login-box { background: white; padding: 44px 36px; border-radius: 12px; border: 1px solid var(--gray-line); box-shadow: 0 2px 12px rgba(17,24,39,0.06); width: 100%; max-width: 400px; text-align: center; }
+        .login-box { background: white; padding: 44px 36px; border-radius: 12px; border: 1px solid var(--gray-line); box-shadow: 0 2px 12px rgba(17,24,39,0.06); width: 100%; max-width: 420px; text-align: center; }
         .login-box .login-logo { max-width: 220px; max-height: 80px; height: auto; margin: 0 auto 20px auto; display: block; object-fit: contain; }
         .login-box .logo-fallback { width: 64px; height: 64px; margin: 0 auto 18px auto; border-radius: 50%; background: var(--blue); color: white; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; justify-content: center; letter-spacing: 1px; }
         .login-box h2 { color: #111827; margin-bottom: 6px; font-size: 1.5em; }
         .login-box .subtitle { color: var(--gray-text); margin-bottom: 20px; font-size: 0.95em; }
-        .login-box input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95em; }
-        .login-btn { width: 100%; padding: 13px; background-color: var(--blue); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        
+        /* 防止 iOS Safari 自動放大：將輸入框設為標準 16px */
+        .login-box input { width: 100%; padding: 12px 14px; margin-bottom: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; min-height: 46px; outline: none; }
+        .login-box input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-light); }
+        .login-btn { width: 100%; padding: 14px; background-color: var(--blue); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; min-height: 48px; }
         .login-btn:hover { background-color: var(--blue-dark); }
-        #login-error { color: #dc2626; font-size: 0.85em; margin-bottom: 15px; display: none; }
-        .login-hint { margin-top: 20px; font-size: 0.8em; color: #9ca3af; }
+        #login-error { color: #dc2626; font-size: 0.88em; margin-bottom: 15px; display: none; font-weight: bold; }
+        .login-hint { margin-top: 20px; font-size: 0.82em; color: #9ca3af; }
 
         #dashboard-container { display: none; height: 100dvh; flex-direction: row; }
-        #sidebar { width: 260px; background-color: var(--black); color: #f9fafb; display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease-in-out, max-height 0.3s ease-in-out; overflow-x: hidden; white-space: nowrap; }
+        #sidebar { width: 260px; background-color: var(--black); color: #f9fafb; display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.3s ease-in-out, max-height 0.3s ease-in-out; overflow-x: hidden; white-space: nowrap; z-index: 100; }
         #sidebar.collapsed { width: 0; }
-        .tutor-info { padding: 18px 20px; background-color: var(--black-deep); text-align: center; border-bottom: 1px solid #1f2937; }
+        .tutor-info { padding: 18px 20px; background-color: var(--black-deep); text-align: center; border-bottom: 1px solid #1f2937; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
         .tutor-info h3 { font-size: 1.05em; font-weight: bold; }
-        .logout-btn { margin-top: 10px; padding: 6px 20px; background: transparent; border: 1px solid #374151; color: #9ca3af; border-radius: 20px; font-size: 0.8em; cursor: pointer; transition: 0.2s; }
+        .logout-btn { padding: 8px 22px; background: transparent; border: 1px solid #374151; color: #9ca3af; border-radius: 20px; font-size: 0.85em; cursor: pointer; transition: 0.2s; min-height: 36px; }
         .logout-btn:hover { border-color: var(--blue); color: white; background: var(--blue); }
 
-        .search-box { padding: 12px 18px 0 18px; }
-        .search-box input { width: 100%; padding: 8px 12px; border: 1px solid #374151; background: #1f2937; color: white; border-radius: 6px; font-size: 0.85em; outline: none; }
-        .search-box input::placeholder { color: #9ca3af; }
+        .search-box { padding: 14px 18px 8px 18px; }
+        .search-box input { width: 100%; padding: 10px 14px; border: 1px solid #374151; background: #1f2937; color: white; border-radius: 8px; font-size: 16px; outline: none; min-height: 42px; }
+        .search-box input::placeholder { color: #9ca3af; font-size: 0.9em; }
 
-        .menu-list { flex-grow: 1; overflow-y: auto; list-style-type: none; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
-        .menu-category { padding: 14px 18px; font-size: 0.98em; font-weight: bold; color: white; background: transparent; border-left: 4px solid var(--blue); margin-top: 10px; display: flex; align-items: center; cursor: pointer; user-select: none; }
+        .menu-list { flex-grow: 1; overflow-y: auto; list-style-type: none; padding-bottom: 24px; -webkit-overflow-scrolling: touch; }
+        .menu-category { padding: 16px 18px; font-size: 0.98em; font-weight: bold; color: white; background: transparent; border-left: 4px solid var(--blue); margin-top: 10px; display: flex; align-items: center; cursor: pointer; user-select: none; min-height: 48px; }
         .menu-category:hover { background: #1f2937; }
         .menu-category .cat-arrow { margin-left: auto; font-size: 0.85em; color: #6b7280; }
         .menu-category.closed .cat-arrow { transform: rotate(-90deg); }
         .menu-section { padding: 14px 22px 6px 22px; font-size: 0.78em; font-weight: bold; color: #9ca3af; letter-spacing: 1px; }
-        .menu-item { padding: 11px 20px 11px 34px; cursor: pointer; transition: 0.2s; font-size: 0.92em; color: #d1d5db; text-decoration: none; display: block; }
+        .menu-item { padding: 14px 20px 14px 34px; cursor: pointer; transition: 0.2s; font-size: 0.92em; color: #d1d5db; text-decoration: none; display: block; min-height: 44px; word-break: break-word; white-space: normal; }
         .menu-item:hover { background-color: #1f2937; color: white; }
-        .menu-item.active { background-color: var(--blue); color: white; }
+        .menu-item.active { background-color: var(--blue); color: white; font-weight: bold; }
         .hidden { display: none !important; }
 
-        #content-area { flex-grow: 1; position: relative; min-height: 0; min-width: 0; }
+        #content-area { flex-grow: 1; position: relative; min-height: 0; min-width: 0; background: white; }
         iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; background-color: white; }
-        #toggle-sidebar-btn { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(17, 24, 39, 0.85); color: white; border: none; border-radius: 8px; width: 50px; height: 40px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: 0.2s; padding: 0; }
+        
+        /* 懸浮選單開關按鈕 (Touch-friendly 50x44px) */
+        #toggle-sidebar-btn { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(17, 24, 39, 0.88); color: white; border: none; border-radius: 8px; width: 50px; height: 44px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); box-shadow: 0 2px 10px rgba(0,0,0,0.25); transition: 0.2s; padding: 0; }
         #toggle-sidebar-btn:hover { background: var(--blue); }
 
-        @media (max-width: 768px) {
+        /* 專屬 iPad / 平板與手機畫面相容優化 (Max-width: 1024px) */
+        @media (max-width: 1024px) {
             #dashboard-container { flex-direction: column; }
-            #sidebar { width: 100%; height: auto; max-height: 50dvh; flex-direction: column; }
-            #sidebar.collapsed { width: 100%; max-height: 0; }
-            .tutor-info { padding: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
-            .logout-btn { margin-top: 0; }
-            .search-box { padding: 10px; border-bottom: 1px solid #1f2937; }
-            .menu-list { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding-bottom: 0; scrollbar-width: none; align-items: stretch; }
+            #sidebar { width: 100%; height: auto; max-height: 48dvh; flex-direction: column; border-bottom: 1px solid #374151; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+            #sidebar.collapsed { width: 100%; max-height: 0; border-bottom: none; box-shadow: none; }
+            .tutor-info { padding: 12px 16px; flex-direction: row; justify-content: space-between; }
+            .tutor-info h3 { font-size: 1em; }
+            .logout-btn { margin-top: 0; padding: 6px 16px; min-height: 34px; }
+            .search-box { padding: 10px 14px; border-bottom: 1px solid #1f2937; }
+            
+            /* 在平板與手機直立畫面上，將選單轉換為舒適的橫向或大區塊滑動結構 */
+            .menu-list { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding-bottom: 0; scrollbar-width: none; align-items: stretch; -webkit-overflow-scrolling: touch; }
             .menu-list::-webkit-scrollbar { display: none; }
-            .menu-category { margin-top: 0; border-left: none; border-bottom: 4px solid var(--blue); border-right: 2px solid #1f2937; padding: 15px; }
+            .menu-category { margin-top: 0; border-left: none; border-bottom: 4px solid var(--blue); border-right: 1px solid #1f2937; padding: 14px 18px; flex-shrink: 0; }
             .menu-category .cat-arrow { display: none; }
-            .menu-section { border-right: 1px solid #1f2937; padding: 15px; display: flex; align-items: center; }
-            .menu-item { border-right: 1px solid #1f2937; padding: 15px; display: flex; align-items: center; }
+            .menu-section { border-right: 1px solid #1f2937; padding: 14px 18px; display: flex; align-items: center; flex-shrink: 0; }
+            .menu-item { border-right: 1px solid #1f2937; padding: 14px 18px; display: flex; align-items: center; flex-shrink: 0; white-space: nowrap; }
             .menu-item.active { border-bottom: 4px solid #93c5fd; }
         }
     </style>
@@ -243,6 +252,13 @@
     {
         "username": "123",
         "password": "123",
+        "perms": [
+            "教材"
+        ]
+    },
+    {
+        "username": "1234",
+        "password": "1234",
         "perms": []
     }
 ];
@@ -339,7 +355,7 @@
                 });
 
                 catLi.onclick = () => {
-                    if (window.innerWidth <= 768) return;
+                    if (window.innerWidth <= 1024) return;
                     catLi.classList.toggle('closed');
                     const closed = catLi.classList.contains('closed');
                     childElements.forEach(el => el.classList.toggle('hidden', closed));
@@ -367,19 +383,25 @@
             frame.src = 'about:blank';
             frame.srcdoc = `<!DOCTYPE html>
                 <html lang="zh-HK"><head><meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
                 <style>
-                    body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; padding: 70px 8% 40px 8%; color: #111827; line-height: 1.9; background: #ffffff; }
-                    h2 { color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
-                    h3 { color: #2563eb; margin: 22px 0 8px 0; }
+                    * { box-sizing: border-box; touch-action: manipulation; }
+                    body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; padding: 60px 8% 40px 8%; color: #111827; line-height: 1.9; background: #ffffff; -webkit-text-size-adjust: 100%; word-wrap: break-word; overflow-wrap: break-word; }
+                    h2 { color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.5em; }
+                    h3 { color: #2563eb; margin: 22px 0 8px 0; font-size: 1.2em; }
                     ul, ol { padding-left: 1.5em; }
                     li { margin-bottom: 6px; }
                     b, strong { color: #1d4ed8; }
                     i, em { font-style: italic; }
                     u { text-decoration: underline; }
-                    img { max-width: 100%; height: auto; border-radius: 6px; margin: 10px 0; }
-                    iframe { max-width: 100%; width: 100%; border-radius: 6px; margin: 10px 0; border: 1px solid #e5e7eb; }
+                    img { max-width: 100%; height: auto; border-radius: 6px; margin: 10px 0; display: block; }
+                    iframe { max-width: 100%; width: 100%; min-height: 280px; border-radius: 6px; margin: 10px 0; border: 1px solid #e5e7eb; }
                     .tip { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 24px; font-size: 0.95em; color: #374151; }
+                    @media (max-width: 768px) {
+                        body { padding: 60px 5% 30px 5%; font-size: 16px; }
+                        h2 { font-size: 1.3em; }
+                        iframe { min-height: 220px; }
+                    }
                 </style></head>
                 <body><h2>${page.title}</h2>${page.body}</body></html>`;
             setActive(clickedElement);
@@ -392,7 +414,7 @@
         }
 
         function collapseSidebarOnMobile() {
-            if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+            if (window.innerWidth <= 1024) document.getElementById('sidebar').classList.add('collapsed');
         }
 
         function toggleSidebar() {
